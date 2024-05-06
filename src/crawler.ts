@@ -1,6 +1,3 @@
-import http from 'node:http'
-import https from 'node:https'
-
 interface ErrorHandler {
   (error: Error, url?: string): void;
 }
@@ -10,95 +7,114 @@ interface ItemProcessor {
 }
 
 class Crawler {
-  private taskQueue: string[] = [];
-  private active: boolean = false;
-  private concurrency: number;
-  private activeRequests: number = 0;
-  private errorHandler: ErrorHandler;
-  private itemProcessor: ItemProcessor;
+  private taskQueue: string[] = []
+  private active: boolean = false
+  private concurrency: number
+  private activeRequests: number = 0
+  private errorHandler: ErrorHandler
+  private itemProcessor: ItemProcessor
+  private proxy: string | string[]
 
   constructor(concurrency: number = 1) {
     this.concurrency = concurrency;
     this.errorHandler = (error, url) => {
-      console.error(`Error fetching ${url}:`, error);
-    };
-    this.itemProcessor = (html, url) => {
-      console.log(`Processing content from ${url}`);
-    };
-  }
-
-  public addTask(url: string): this {
-    this.taskQueue.push(url);
-    if (this.active) {
-      this.checkQueue();
+      console.error(`Error fetching ${url}:`, error)
     }
-    return this;
+    this.itemProcessor = (html, url) => {
+      console.log(`Processing content from ${url}`)
+    }
+    this.proxy = ''
   }
 
-  public start(): this {
-    this.active = true;
-    this.checkQueue();
-    console.log('Crawler started.');
-    return this;
+  public setProxy(proxy: string | string[]) {
+    this.proxy = proxy
+    return this
   }
 
-  public stop(): this {
+  public addTask(url: string) {
+    this.taskQueue.push(url)
+    if (this.active) {
+      this.checkQueue()
+    }
+    return this
+  }
+
+  public start() {
+    this.active = true
+    this.checkQueue()
+    console.log('Crawler started.')
+    return this
+  }
+
+  public stop() {
     this.active = false;
-    console.log('Crawler stopped.');
-    return this;
+    console.log('Crawler stopped.')
+    return this
   }
 
   private async checkQueue(): Promise<void> {
     while (this.active && this.activeRequests < this.concurrency && this.taskQueue.length > 0) {
-      const url = this.taskQueue.shift();
+      const url = this.taskQueue.shift()
       if (url) {
-        this.activeRequests++;
+        this.activeRequests++
         this.fetchPage(url).finally(() => {
-          this.activeRequests--;
+          this.activeRequests--
           if (this.active) {
-            this.checkQueue();
+            this.checkQueue()
           }
-        });
+        })
       }
     }
   }
 
   private async fetchPage(url: string): Promise<void> {
     try {
-      const html = await this.fetchUrl(url);
-      console.log(`Page fetched: ${url}`);
-      this.itemProcessor(html, url);
+      const html = await this.fetchUrl(url)
+      console.log(`Page fetched: ${url}`)
+      this.itemProcessor(html, url)
     } catch (error) {
-      this.errorHandler(error, url);
+      if (error instanceof Error) {
+        this.errorHandler(error, url)
+      } else {
+        console.error(error)
+      }
     }
   }
 
-  private fetchUrl(url: string): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const protocol = url.startsWith('https') ? https : http;
-      protocol.get(url, response => {
-        if (response.statusCode && response.statusCode >= 200 && response.statusCode < 300) {
-          let data = '';
-          response.on('data', chunk => data += chunk);
-          response.on('end', () => resolve(data));
-        } else {
-          reject(new Error(`Request Failed. Status Code: ${response.statusCode}`));
+  private async fetchUrl(url: string): Promise<string> {
+    let options: FetchRequestInit = {
+      method: 'GET'
+    }
+
+    if (this.proxy) {
+      if (typeof this.proxy === 'string') {
+        options.proxy = this.proxy
+      } else if (Array.isArray(this.proxy)) {
+        const proxy = this.proxy[Math.floor(Math.random() * this.proxy.length)]
+        if (proxy) {
+          options.proxy = proxy
         }
-      }).on('error', error => {
-        reject(error);
-      });
-    });
+      }
+    }
+
+    const response = await fetch(url, options)
+    if (response.ok) {
+      const data = await response.text()
+      return data
+    } else {
+      throw new Error(`Request Failed. Status Code: ${response.status}`)
+    }
   }
 
-  public onError(handler: ErrorHandler): this {
-    this.errorHandler = handler;
-    return this;
+  public onError(handler: ErrorHandler) {
+    this.errorHandler = handler
+    return this
   }
 
-  public onItemProcess(processor: ItemProcessor): this {
-    this.itemProcessor = processor;
-    return this;
+  public onItemProcess(processor: ItemProcessor) {
+    this.itemProcessor = processor
+    return this
   }
 }
 
-export default Crawler;
+export default Crawler
