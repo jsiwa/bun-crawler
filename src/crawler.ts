@@ -1,4 +1,5 @@
 import { unique } from './utils'
+import { sleep } from 'bun'
 
 interface ErrorHandler {
   (error: Error, url?: string): void;
@@ -76,6 +77,7 @@ class Crawler {
         })
       } else {
         this.end()
+        await sleep(1000)
       }
     }
   }

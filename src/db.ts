@@ -1,7 +1,7 @@
 import { Database } from 'bun:sqlite'
 
 export class CreateDB {
-  private db: Database
+  public db: Database
 
   constructor(dbName: string, enableWAL: boolean = false) {
     this.db = new Database(`${dbName}.db`, { create: true })
