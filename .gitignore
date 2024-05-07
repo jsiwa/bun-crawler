@@ -130,5 +130,7 @@ dist
 .pnp.*
 
 # test
-test.ts
+test*.ts
 *.db
+*.db-shm
+*.db-wal
