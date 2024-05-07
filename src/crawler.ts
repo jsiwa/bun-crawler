@@ -1,3 +1,5 @@
+import { unique } from './utils'
+
 interface ErrorHandler {
   (error: Error, url?: string): void;
 }
@@ -41,6 +43,7 @@ class Crawler {
 
   public addTask(url: string) {
     this.taskQueue.push(url)
+    this.taskQueue = unique(this.taskQueue)
     if (this.active) {
       this.checkQueue()
     }
