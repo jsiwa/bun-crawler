@@ -6,6 +6,10 @@ interface ItemProcessor {
   (html: string, url: string): void;
 }
 
+interface EndHandler {
+  (): void;
+}
+
 class Crawler {
   private taskQueue: string[] = []
   private active: boolean = false
@@ -13,6 +17,7 @@ class Crawler {
   private activeRequests: number = 0
   private errorHandler: ErrorHandler
   private itemProcessor: ItemProcessor
+  private end: EndHandler
   private proxy: string | string[]
 
   constructor(concurrency: number = 1) {
@@ -22,6 +27,9 @@ class Crawler {
     }
     this.itemProcessor = (html, url) => {
       console.log(`Processing content from ${url}`)
+    }
+    this.end = () => {
+      console.log(`Crawler end`)
     }
     this.proxy = ''
   }
@@ -63,6 +71,8 @@ class Crawler {
             this.checkQueue()
           }
         })
+      } else {
+        this.end()
       }
     }
   }
@@ -114,6 +124,15 @@ class Crawler {
   public onItemProcess(processor: ItemProcessor) {
     this.itemProcessor = processor
     return this
+  }
+
+  public onEnd(endHandler: EndHandler) {
+    this.end = endHandler
+    return this
+  }
+
+  public getTaskCount () {
+    return this.taskQueue.length
   }
 }
 
