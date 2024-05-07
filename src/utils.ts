@@ -88,3 +88,18 @@ export function isUrl(urlString: string) {
     '(\\#[-a-z\\d_]*)?$', 'i') // fragment locator
   return !!pattern.test(urlString);
 }
+
+export function unique<T>(array: T[]) {
+  return Array.from(new Set(array))
+}
+
+export function uniqueBy<T, K extends keyof any>(array: T[], keyFn: (item: T) => K) {
+  const seen = new Map<K, T>()
+  for (const item of array) {
+    const key = keyFn(item)
+    if (!seen.has(key)) {
+      seen.set(key, item)
+    }
+  }
+  return Array.from(seen.values())
+}
