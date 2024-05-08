@@ -13,6 +13,10 @@ interface EndHandler {
   (): void;
 }
 
+interface BeforeRequestHandler {
+  (url: string): boolean | Promise<boolean>;
+}
+
 class Crawler {
   private taskQueue: string[] = []
   private active: boolean = false
@@ -23,18 +27,20 @@ class Crawler {
   private itemProcessor: ItemProcessor
   private end: EndHandler
   private proxy: string | string[]
+  private beforeRequestHandler: BeforeRequestHandler
 
   constructor(concurrency: number = 1) {
     this.concurrency = concurrency;
     this.errorHandler = (error, url) => {
       console.error(`Error fetching ${url}:`, error)
     }
-    this.itemProcessor = (html, url) => {
+    this.itemProcessor = (_, url) => {
       console.log(`Processing content from ${url}`)
     }
     this.end = () => {
       console.log(`Crawler end`)
     }
+    this.beforeRequestHandler = (_) => true  // Default to always continue
     this.proxy = ''
   }
 
@@ -42,13 +48,16 @@ class Crawler {
     while (this.active && this.activeRequests < this.concurrency && this.taskQueue.length > 0) {
       const url = this.taskQueue.shift()
       if (url) {
-        this.activeRequests++
-        this.fetchPage(url, this.retries).finally(() => {
-          this.activeRequests--
-          if (this.active) {
-            this.checkQueue()
-          }
-        })
+        const proceed = await this.beforeRequestHandler(url)
+        if (proceed) {
+          this.activeRequests++
+          this.fetchPage(url, this.retries).finally(() => {
+            this.activeRequests--
+            if (this.active) {
+              this.checkQueue()
+            }
+          })
+        }
       } else {
         this.end()
         await sleep(1000)
@@ -142,6 +151,11 @@ class Crawler {
 
   public onEnd(endHandler: EndHandler) {
     this.end = endHandler
+    return this
+  }
+
+  beforeRequest(handler: BeforeRequestHandler) {
+    this.beforeRequestHandler = handler
     return this
   }
 
