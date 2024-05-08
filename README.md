@@ -1,5 +1,21 @@
 # bun-scrapy
 
+## Crawler simple example
+```TypeScript
+const crawler = new Crawler(3)
+  .setProxy(["http://proxy1.com", "http://proxy2.com"])
+  .setRetries(3)
+  .onError((error, url) => console.error(`Failed to fetch ${url}: ${error.message}`))
+  .onItemProcess((html, url) => console.log(`Title from ${url}: ${html.match(/<title>(.*?)<\/title>/i)[1]}`))
+  .onEnd(() => console.log("All crawling tasks completed."))
+  .addTask("https://example.com")
+  .addTask("https://example.org")
+  .start();
+
+setTimeout(() => crawler.stop(), 10000);  // Optional: stop after 10 seconds
+
+```
+
 ## Crawler example
 ```TypeScript
 import Crawler from "./crawler"
@@ -14,9 +30,7 @@ db.createTable(tableName, 'id INTEGER PRIMARY KEY AUTOINCREMENT,url TEXT NOT NUL
 
 const crawler = new Crawler(3)
   .addTask('https://example.com')
-  .setProxy([
-    'http://proxyhost:port'
-  ])
+  .setProxy('http://user:password@proxyhost:port')
   .onError((error, url) => {
     console.error(error)
     try {

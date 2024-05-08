@@ -18,6 +18,7 @@ class Crawler {
   private active: boolean = false
   private concurrency: number
   private activeRequests: number = 0
+  private retries: number = 0
   private errorHandler: ErrorHandler
   private itemProcessor: ItemProcessor
   private end: EndHandler
@@ -37,39 +38,12 @@ class Crawler {
     this.proxy = ''
   }
 
-  public setProxy(proxy: string | string[]) {
-    this.proxy = proxy
-    return this
-  }
-
-  public addTask(url: string) {
-    this.taskQueue.push(url)
-    this.taskQueue = unique(this.taskQueue)
-    if (this.active) {
-      this.checkQueue()
-    }
-    return this
-  }
-
-  public start() {
-    this.active = true
-    this.checkQueue()
-    console.log('Crawler started.')
-    return this
-  }
-
-  public stop() {
-    this.active = false;
-    console.log('Crawler stopped.')
-    return this
-  }
-
-  private async checkQueue(): Promise<void> {
+  private async checkQueue() {
     while (this.active && this.activeRequests < this.concurrency && this.taskQueue.length > 0) {
       const url = this.taskQueue.shift()
       if (url) {
         this.activeRequests++
-        this.fetchPage(url).finally(() => {
+        this.fetchPage(url, this.retries).finally(() => {
           this.activeRequests--
           if (this.active) {
             this.checkQueue()
@@ -82,16 +56,19 @@ class Crawler {
     }
   }
 
-  private async fetchPage(url: string): Promise<void> {
+  private async fetchPage(url: string, retries: number = 0) {
     try {
       const html = await this.fetchUrl(url)
       console.log(`Page fetched: ${url}`)
       this.itemProcessor(html, url)
     } catch (error) {
-      if (error instanceof Error) {
+      if (retries > 0) {
+        console.log(`Retry ${url}, attempts left: ${retries}`)
+        setTimeout(() => this.fetchPage(url, retries - 1), 1000)
+      } else if (error instanceof Error) {
         this.errorHandler(error, url)
       } else {
-        console.error(error)
+        console.error("Unexpected error type:", error)
       }
     }
   }
@@ -119,6 +96,38 @@ class Crawler {
     } else {
       throw new Error(`Request Failed. Status Code: ${response.status}`)
     }
+  }
+
+  public setProxy(proxy: string | string[]) {
+    this.proxy = proxy
+    return this
+  }
+
+  public setRetries(retries: number) {
+    this.retries = retries
+    return this
+  }
+
+  public addTask(url: string) {
+    this.taskQueue.push(url)
+    this.taskQueue = unique(this.taskQueue)
+    if (this.active) {
+      this.checkQueue()
+    }
+    return this
+  }
+
+  public start() {
+    this.active = true
+    this.checkQueue()
+    console.log('Crawler started.')
+    return this
+  }
+
+  public stop() {
+    this.active = false;
+    console.log('Crawler stopped.')
+    return this
   }
 
   public onError(handler: ErrorHandler) {
