@@ -5,6 +5,7 @@
 const crawler = new Crawler(3)
   .setProxy(["http://proxy1.com", "http://proxy2.com"])
   .setRetries(3)
+  .beforeRequest(url => true)
   .onError((error, url) => console.error(`Failed to fetch ${url}: ${error.message}`))
   .onItemProcess((html, url) => console.log(`Title from ${url}: ${html.match(/<title>(.*?)<\/title>/i)[1]}`))
   .onEnd(() => console.log("All crawling tasks completed."))
