@@ -73,3 +73,30 @@ const crawler = new Crawler(3)
   })
   .start()
 ```
+
+## sqlite Serve example
+```TypeScript
+import { CreateDB } from "./db"
+
+const db = new CreateDB('example')
+const tableName = 'sites'
+
+const server = Bun.serve({
+  port: 5000,
+  fetch(request) {
+    const url = request.url
+    const o = new URL(url).searchParams
+    const pageNum = Number(o.get('pageNum')) || 1
+    const pageSize = Number(o.get('pageSize')) || 20
+
+    const list = db.findByCondition(tableName, 'status = 0 ORDER BY ID DESC', [], pageSize * (pageNum - 1), pageSize)
+    return new Response(JSON.stringify({
+      pageNum,
+      pageSize,
+      list
+    }, null, 2))
+  },
+})
+
+console.log(`Listening on localhost:${server.port}`);
+```
