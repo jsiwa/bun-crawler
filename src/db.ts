@@ -37,14 +37,23 @@ export class CreateDB {
     }
   }
 
-  public findByCondition(tableName: string, condition: string, params: any[]) {
+  public findByCondition(tableName: string, condition: string, params: any[] = [], offset?: number, limit?: number) {
     try {
-      const querySQL = `SELECT * FROM ${tableName} WHERE ${condition}`
+      let querySQL = `SELECT * FROM ${tableName} WHERE ${condition}`
+  
+      // Add LIMIT and OFFSET to the query if they are provided
+      if (limit !== undefined) {
+        querySQL += ` LIMIT ${limit}`
+        if (offset !== undefined) {
+          querySQL += ` OFFSET ${offset}`
+        }
+      }
+      console.log(querySQL)
       const statement = this.db.prepare(querySQL)
       return statement.all(...params)
     } catch (error) {
-      console.error("Error executing query:", error)
-      throw error; // Optionally rethrow or handle error differently
+      console.error("Error executing query:", error);
+      throw error // Optionally rethrow or handle error differently
     }
   }
 
