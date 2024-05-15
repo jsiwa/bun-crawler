@@ -17,7 +17,7 @@ const crawler = new Crawler(3)
   .addTask("https://example.org")
   .start();
 
-setTimeout(() => crawler.stop(), 10000);  // Optional: stop after 10 seconds
+setTimeout(() => crawler.stop(), 10000)  // Optional: stop after 10 seconds
 
 ```
 
@@ -74,6 +74,19 @@ const crawler = new Crawler(3)
   .start()
 ```
 
+## setCookies and setHeaders
+```TypeScript
+const crawler = new Crawler(5);
+crawler.setCookies('sessionid=abc123; secure')
+crawler.setHeaders({
+  'User-Agent': 'Mozilla/5.0',
+  'Accept-Language': 'en-US,en;q=0.9',
+});
+crawler.addTask('https://example.com')
+crawler.start()
+
+```
+
 ## sqlite Serve example
 ```TypeScript
 import { CreateDB } from "./db"
@@ -98,5 +111,5 @@ const server = Bun.serve({
   },
 })
 
-console.log(`Listening on localhost:${server.port}`);
+console.log(`Listening on localhost:${server.port}`)
 ```
