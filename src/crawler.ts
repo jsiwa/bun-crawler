@@ -2,19 +2,19 @@ import { unique } from './utils'
 import { sleep } from 'bun'
 
 interface ErrorHandler {
-  (error: Error, url?: string): void;
+  (error: Error, url?: string): void
 }
 
 interface ItemProcessor {
-  (html: string, url: string): void;
+  (html: string, url: string): void
 }
 
 interface EndHandler {
-  (): void;
+  (): void
 }
 
 interface BeforeRequestHandler {
-  (url: string): boolean | Promise<boolean>;
+  (url: string): boolean | Promise<boolean>
 }
 
 class Crawler {
@@ -28,9 +28,11 @@ class Crawler {
   private end: EndHandler
   private proxy: string | string[]
   private beforeRequestHandler: BeforeRequestHandler
+  private cookies: string = ''
+  private headers: Record<string, string> = {}
 
   constructor(concurrency: number = 1) {
-    this.concurrency = concurrency;
+    this.concurrency = concurrency
     this.errorHandler = (error, url) => {
       console.error(`Error fetching ${url}:`, error)
     }
@@ -84,7 +86,11 @@ class Crawler {
 
   private async fetchUrl(url: string): Promise<string> {
     let options: FetchRequestInit = {
-      method: 'GET'
+      method: 'GET',
+      headers: {
+        ...this.headers,
+        'Cookie': this.cookies,
+      }
     }
 
     if (this.proxy) {
@@ -98,12 +104,18 @@ class Crawler {
       }
     }
 
-    const response = await fetch(url, options)
-    if (response.ok) {
-      const data = await response.text()
-      return data
-    } else {
-      throw new Error(`Request Failed. Status Code: ${response.status}`)
+    try {
+      const response = await fetch(url, options)
+      if (response.ok) {
+        const data = await response.text()
+        return data
+      } else {
+        throw new Error(`Request Failed. Status Code: ${response.status}`)
+      }
+    } catch (error) {
+      if (error instanceof Error)
+        throw new Error(`Failed to fetch ${url}: ${error.message}`)
+      throw error
     }
   }
 
@@ -114,6 +126,16 @@ class Crawler {
 
   public setRetries(retries: number) {
     this.retries = retries
+    return this
+  }
+
+  public setCookies(cookies: string) {
+    this.cookies = cookies
+    return this
+  }
+
+  public setHeaders(headers: Record<string, string>) {
+    this.headers = headers
     return this
   }
 
@@ -134,7 +156,7 @@ class Crawler {
   }
 
   public stop() {
-    this.active = false;
+    this.active = false
     console.log('Crawler stopped.')
     return this
   }
@@ -154,12 +176,12 @@ class Crawler {
     return this
   }
 
-  beforeRequest(handler: BeforeRequestHandler) {
+  public beforeRequest(handler: BeforeRequestHandler) {
     this.beforeRequestHandler = handler
     return this
   }
 
-  public getTaskCount () {
+  public getTaskCount() {
     return this.taskQueue.length
   }
 }
