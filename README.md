@@ -39,7 +39,7 @@ const crawler = new Crawler(3)
   .onError((error, url) => {
     console.error(error)
     try {
-      db.insertData(tableName, {
+      db.insert(tableName, {
         url,
         status: 'false'
       })
@@ -49,7 +49,7 @@ const crawler = new Crawler(3)
     const remainingTasks = crawler.getTaskCount()
     console.log(`Crawling: ${url}, reamining tasks: ${remainingTasks}`)
     try {
-      db.insertData(tableName, {
+      db.insert(tableName, {
         url,
         status: 'success',
         data: html
@@ -102,7 +102,12 @@ const server = Bun.serve({
     const pageNum = Number(o.get('pageNum')) || 1
     const pageSize = Number(o.get('pageSize')) || 20
 
-    const list = db.findByCondition(tableName, 'status = 0 ORDER BY ID DESC', [], pageSize * (pageNum - 1), pageSize)
+    const list = db.select(tableName, {
+      condition: 'status = ? ORDER BY ID DESC',
+      params: [1],
+      offset: pageSize * (pageNum - 1),
+      limit: pageSize
+    })
     return new Response(JSON.stringify({
       pageNum,
       pageSize,
@@ -112,4 +117,22 @@ const server = Bun.serve({
 })
 
 console.log(`Listening on localhost:${server.port}`)
+```
+
+## db example
+```TypeScript
+// Example usage
+const db = new CreateDB('example')
+  .createTable('users', 'id INTEGER PRIMARY KEY, name TEXT, age INTEGER')
+  .insert('users', { name: 'John Doe', age: 30 })
+  .update('users', { name: 'Jane Doe' }, 'id = ?', [1])
+
+// Using the new select method with options
+const users = db.select('users', { condition: 'id > ?', params: [1] })
+console.log(users)
+
+// Using the exec method to run a custom query
+db.exec('DELETE FROM users WHERE id = ?', [2])
+
+db.close()
 ```

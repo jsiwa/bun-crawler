@@ -1,89 +1,122 @@
 import { Database } from 'bun:sqlite'
 
+class DatabaseError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'DatabaseError'
+  }
+}
+
 export class CreateDB {
-  public db: Database
+  private db: Database
 
   constructor(dbName: string, enableWAL: boolean = false) {
     this.db = new Database(`${dbName}.db`, { create: true })
     if (enableWAL) {
-      this.db.exec("PRAGMA journal_mode = WAL;")
+      this.db.exec('PRAGMA journal_mode = WAL;')
     }
   }
 
-  public createTable(tableName: string, fields: string): void {
+  createTable(tableName: string, fields: string): this {
     const createTableSQL = `CREATE TABLE IF NOT EXISTS ${tableName} (${fields})`
     try {
       this.db.exec(createTableSQL)
     } catch (error) {
-      console.error("Error creating table:", error)
-      throw error // Optionally rethrow or handle error differently
+      console.error('Error creating table:', error)
+      if (error instanceof Error)
+        throw new DatabaseError(`Failed to create table ${tableName}: ${error.message}`)
+      throw error
     }
+    return this
   }
 
-  public insertData(tableName: string, data: Record<string, any>): void {
+  insert(tableName: string, data: Record<string, any>): this {
     const keys = Object.keys(data)
-    const values:any[] = keys.map(key => data[key])
-
     const placeholders = keys.map(() => '?').join(', ')
     const columns = keys.join(', ')
+    const values = Object.values(data)
 
     const insertSQL = `INSERT INTO ${tableName} (${columns}) VALUES (${placeholders})`
-    try {
-      const statement = this.db.prepare(insertSQL)
-      statement.run(...values)
-    } catch (error) {
-      console.error("Error inserting data:", error)
-      throw error; // Optionally rethrow or handle error differently
-    }
+    this.run(insertSQL, values)
+    return this
   }
 
-  public findByCondition(tableName: string, condition: string, params: any[] = [], offset?: number, limit?: number) {
-    try {
-      let querySQL = `SELECT * FROM ${tableName} WHERE ${condition}`
-  
-      // Add LIMIT and OFFSET to the query if they are provided
-      if (limit !== undefined) {
-        querySQL += ` LIMIT ${limit}`
-        if (offset !== undefined) {
-          querySQL += ` OFFSET ${offset}`
-        }
-      }
-      console.log(querySQL)
-      const statement = this.db.prepare(querySQL)
-      return statement.all(...params)
-    } catch (error) {
-      console.error("Error executing query:", error);
-      throw error // Optionally rethrow or handle error differently
+  select(
+    tableName: string,
+    options: { condition?: string, params?: any[], limit?: number, offset?: number } = {}
+  ): any[] {
+    let querySQL = `SELECT * FROM ${tableName}`
+    const { condition, params = [], limit, offset } = options
+
+    if (condition) {
+      querySQL += ` WHERE ${condition}`
     }
+    if (limit !== undefined) {
+      querySQL += ` LIMIT ${limit}`
+    }
+    if (offset !== undefined) {
+      querySQL += ` OFFSET ${offset}`
+    }
+
+    return this.all(querySQL, params)
   }
 
-  public updateData(tableName: string, data: Record<string, any>, condition: string, params: any[]): void {
-    // Construct the SQL update statement
+  update(
+    tableName: string,
+    data: Record<string, any>,
+    condition?: string,
+    params: any[] = []
+  ): this {
     const keys = Object.keys(data)
     const setClause = keys.map(key => `${key} = ?`).join(', ')
-    const values: any[] = keys.map(key => data[key]) // Values to set
+    const values = Object.values(data)
 
-    const updateSQL = `UPDATE ${tableName} SET ${setClause} WHERE ${condition}`;
+    let updateSQL = `UPDATE ${tableName} SET ${setClause}`
+    if (condition) {
+      updateSQL += ` WHERE ${condition}`
+    }
+    this.run(updateSQL, [...values, ...params])
+    return this
+  }
 
+  delete(tableName: string, condition?: string, params: any[] = []): this {
+    let deleteSQL = `DELETE FROM ${tableName}`
+    if (condition) {
+      deleteSQL += ` WHERE ${condition}`
+    }
+    this.run(deleteSQL, params)
+    return this
+  }
+
+  exec(sql: string, params: any[] = []): void {
+    this.run(sql, params)
+  }
+
+  private run(sql: string, params: any[] = []): void {
     try {
-      const statement = this.db.prepare(updateSQL)
-      statement.run(...values, ...params) // Combine data values and condition parameters
+      const statement = this.db.prepare(sql)
+      statement.run(...params)
     } catch (error) {
-      console.error("Error updating data:", error)
-      throw error; // Optionally rethrow or handle error differently
+      console.error('Error executing query:', error)
+      if (error instanceof Error)
+        throw new DatabaseError(`Failed to execute query: ${error.message}`)
+      throw error
     }
   }
 
-  public close(): void {
+  private all(sql: string, params: any[] = []): any[] {
+    try {
+      const statement = this.db.prepare(sql)
+      return statement.all(...params)
+    } catch (error) {
+      console.error('Error executing query:', error)
+      if (error instanceof Error)
+        throw new DatabaseError(`Failed to execute query: ${error.message}`)
+      throw error
+    }
+  }
+
+  close(): void {
     this.db.close()
   }
 }
-
-// Example
-// const db = new CreateDB('example')
-// db.createTable('users', 'id INTEGER PRIMARY KEY, name TEXT, age INTEGER')
-// db.insertData('users', { name: 'John Doe', age: 30 })
-// db.updateData('users', { name: 'Jane Doe' }, 'id = ?', [2]) // Update name where id is 1
-// const users = db.findByCondition('users', 'id > ?', [1])
-// console.log(users)
-// db.close()
