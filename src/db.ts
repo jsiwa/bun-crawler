@@ -17,20 +17,23 @@ export class CreateDB {
     }
   }
 
-  createTable(tableName: string, fields: string): this {
+  createTable(tableName: string, fields: string, indices?: { name: string, columns: string }[]): this {
     const createTableSQL = `CREATE TABLE IF NOT EXISTS ${tableName} (${fields})`
     this.run(createTableSQL)
+
+    if (indices) {
+      for (const index of indices) {
+        const createIndexSQL = `CREATE INDEX IF NOT EXISTS ${index.name} ON ${tableName} (${index.columns})`
+        this.run(createIndexSQL)
+      }
+    }
+
     return this
   }
 
-  insert(tableName: string, data: Record<string, any>): this {
-    const keys = Object.keys(data)
-    const placeholders = keys.map(() => '?').join(', ')
-    const columns = keys.join(', ')
-    const values = Object.values(data)
-
-    const insertSQL = `INSERT INTO ${tableName} (${columns}) VALUES (${placeholders})`
-    this.run(insertSQL, values)
+  createIndex(tableName: string, indexName: string, columnNames: string): this {
+    const createIndexSQL = `CREATE INDEX IF NOT EXISTS ${indexName} ON ${tableName} (${columnNames})`
+    this.run(createIndexSQL)
     return this
   }
 

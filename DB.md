@@ -1,39 +1,55 @@
+## Example Usage
+
+Here is how you can use the improved `CreateDB` class to create tables, create indices, and perform other database operations:
+
 ```typescript
-import { CreateDB, DatabaseError } from './db'
+import { CreateDB, DatabaseError } from './path/to/your/module'
 
 try {
   // Create a database instance with WAL mode enabled
   const db = new CreateDB('example', true)
 
-  // Create a table
-  db.createTable('users', 'id INTEGER PRIMARY KEY, name TEXT, age INTEGER')
+  // Create a table with indices
+  db.createTable(
+    'urls', 
+    'id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT NOT NULL UNIQUE, data TEXT, title TEXT, status INTEGER, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP',
+    [
+      { name: 'INX_urls_status', columns: 'status' },
+      { name: 'INX_urls_timestamp', columns: 'timestamp' },
+      { name: 'INX_urls_status_timestamp', columns: 'status, timestamp' } // Example of a composite index
+    ]
+  )
+
+  // Create single-column index
+  db.createIndex('urls', 'INX_urls_status', 'status')
+
+  // Create composite index
+  db.createIndex('urls', 'INX_urls_status_timestamp', 'status, timestamp')
 
   // Insert a single record
-  db.insert('users', { name: 'Alice', age: 30 })
-  db.insert('users', { name: 'Bob', age: 25 })
+  db.insert('urls', { url: 'https://example.com', data: 'Example data', title: 'Example', status: 1 })
 
   // Bulk insert records
-  db.bulkInsert('users', [
-    { name: 'Charlie', age: 35 },
-    { name: 'David', age: 40 },
-    { name: 'Eve', age: 28 }
+  db.bulkInsert('urls', [
+    { url: 'https://example.org', data: 'Example data org', title: 'Example Org', status: 2 },
+    { url: 'https://example.net', data: 'Example data net', title: 'Example Net', status: 3 }
   ])
 
   // Select data
-  const users = db.select('users', { condition: 'age > ?', params: [30], orderBy: 'age DESC' })
-  console.log('Users older than 30:', users)
+  const urls = db.select('urls', { condition: 'status > ?', params: [1], orderBy: 'timestamp DESC' })
+  console.log('URLs with status > 1:', urls)
 
   // Update data
-  db.update('users', { age: 29 }, 'name = ?', ['Eve'])
+  db.update('urls', { status: 4 }, 'url = ?', ['https://example.com'])
 
   // Delete data
-  db.delete('users', 'age < ?', [30])
+  db.delete('urls', 'status < ?', [3])
 
   // Use transactions for multi-step operations
   db.beginTransaction()
   try {
-    db.insert('users', { name: 'Frank', age: 50 })
-    db.insert('users', { name: 'Grace', age: 60 })
+    db.insert('urls', { url: 'https://example.io', data: 'Example data io', title: 'Example IO', status: 5 })
+    db.insert('urls', { url: 'https://example.dev', data: 'Example data dev', title: 'Example Dev', status: 6 })
     db.commitTransaction()
   } catch (error) {
     console.error('Transaction error:', error)
@@ -57,75 +73,83 @@ try {
 
 ### Detailed Explanation:
 
-1. **Create a Database Instance**:
+1. **Creating a Database Instance**:
    ```typescript
    const db = new CreateDB('example', true)
    ```
    Creates a database named `example.db` and enables Write-Ahead Logging (WAL) mode.
 
-2. **Create a Table**:
+2. **Creating a Table with Indices**:
    ```typescript
-   db.createTable('users', 'id INTEGER PRIMARY KEY, name TEXT, age INTEGER')
+   db.createTable(
+     'urls', 
+     'id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT NOT NULL UNIQUE, data TEXT, title TEXT, status INTEGER, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP',
+     [
+       { name: 'INX_urls_status', columns: 'status' },
+       { name: 'INX_urls_timestamp', columns: 'timestamp' },
+       { name: 'INX_urls_status_timestamp', columns: 'status, timestamp' } // Example of a composite index
+     ]
+   )
    ```
-   Creates a table named `users` with columns `id`, `name`, and `age`.
+   Creates a table named `urls` with columns `id`, `url`, `data`, `title`, `status`, and `timestamp`. It also creates indices on `status`, `timestamp`, and a composite index on `status, timestamp`.
 
-3. **Insert a Single Record**:
+3. **Inserting a Single Record**:
    ```typescript
-   db.insert('users', { name: 'Alice', age: 30 })
-   db.insert('users', { name: 'Bob', age: 25 })
+   db.insert('urls', { url:
+
+ 'https://example.com', data: 'Example data', title: 'Example', status: 1 })
    ```
-   Inserts two user records.
+   Inserts a single record into the `urls` table.
 
-4. **Bulk Insert Records**:
+4. **Bulk Inserting Records**:
    ```typescript
-   db.bulkInsert('users', [
-     { name: 'Charlie', age: 35 },
-     { name: 'David', age: 40 },
-     { name: 'Eve', age: 28 }
+   db.bulkInsert('urls', [
+     { url: 'https://example.org', data: 'Example data org', title: 'Example Org', status: 2 },
+     { url: 'https://example.net', data: 'Example data net', title: 'Example Net', status: 3 }
    ])
    ```
-   Inserts three user records in bulk.
+   Bulk inserts multiple records into the `urls` table.
 
-5. **Select Data**:
+5. **Selecting Data**:
    ```typescript
-   const users = db.select('users', { condition: 'age > ?', params: [30], orderBy: 'age DESC' })
-   console.log('Users older than 30:', users)
+   const urls = db.select('urls', { condition: 'status > ?', params: [1], orderBy: 'timestamp DESC' })
+   console.log('URLs with status > 1:', urls)
    ```
-   Selects users older than 30, orders by age in descending order, and prints the results.
+   Selects records from the `urls` table where `status` is greater than 1, ordered by `timestamp` in descending order.
 
-6. **Update Data**:
+6. **Updating Data**:
    ```typescript
-   db.update('users', { age: 29 }, 'name = ?', ['Eve'])
+   db.update('urls', { status: 4 }, 'url = ?', ['https://example.com'])
    ```
-   Updates the age of the user `Eve` to 29.
+   Updates the `status` of the record where `url` is `'https://example.com'`.
 
-7. **Delete Data**:
+7. **Deleting Data**:
    ```typescript
-   db.delete('users', 'age < ?', [30])
+   db.delete('urls', 'status < ?', [3])
    ```
-   Deletes users younger than 30.
+   Deletes records from the `urls` table where `status` is less than 3.
 
-8. **Transaction Operations**:
+8. **Using Transactions for Multi-Step Operations**:
    ```typescript
    db.beginTransaction()
    try {
-     db.insert('users', { name: 'Frank', age: 50 })
-     db.insert('users', { name: 'Grace', age: 60 })
+     db.insert('urls', { url: 'https://example.io', data: 'Example data io', title: 'Example IO', status: 5 })
+     db.insert('urls', { url: 'https://example.dev', data: 'Example data dev', title: 'Example Dev', status: 6 })
      db.commitTransaction()
    } catch (error) {
      console.error('Transaction error:', error)
      db.rollbackTransaction()
    }
    ```
-   Inserts two records within a transaction. If an error occurs, the transaction is rolled back.
+   Uses transactions to insert multiple records. If an error occurs, the transaction is rolled back.
 
-9. **Set PRAGMA**:
+9. **Setting PRAGMA**:
    ```typescript
    db.setPragma('cache_size', 10000)
    ```
    Sets the SQLite cache size to 10000.
 
-10. **Close the Database**:
+10. **Closing the Database**:
     ```typescript
     db.close()
     ```
