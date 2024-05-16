@@ -1,6 +1,6 @@
 import { Database } from 'bun:sqlite'
 
-class DatabaseError extends Error {
+export class DatabaseError extends Error {
   constructor(message: string) {
     super(message)
     this.name = 'DatabaseError'
@@ -19,14 +19,7 @@ export class CreateDB {
 
   createTable(tableName: string, fields: string): this {
     const createTableSQL = `CREATE TABLE IF NOT EXISTS ${tableName} (${fields})`
-    try {
-      this.db.exec(createTableSQL)
-    } catch (error) {
-      console.error('Error creating table:', error)
-      if (error instanceof Error)
-        throw new DatabaseError(`Failed to create table ${tableName}: ${error.message}`)
-      throw error
-    }
+    this.run(createTableSQL)
     return this
   }
 
@@ -38,6 +31,31 @@ export class CreateDB {
 
     const insertSQL = `INSERT INTO ${tableName} (${columns}) VALUES (${placeholders})`
     this.run(insertSQL, values)
+    return this
+  }
+
+  bulkInsert(tableName: string, data: Record<string, any>[]) {
+    if (data.length === 0) return this
+
+    const keys = Object.keys(data[0])
+    const placeholders = keys.map(() => '?').join(', ')
+    const columns = keys.join(', ')
+    const insertSQL = `INSERT INTO ${tableName} (${columns}) VALUES (${placeholders})`
+
+    try {
+      this.db.exec('BEGIN TRANSACTION')
+      const statement = this.db.prepare(insertSQL)
+      for (const row of data) {
+        statement.run(...Object.values(row))
+      }
+      this.db.exec('COMMIT')
+    } catch (error) {
+      this.db.exec('ROLLBACK')
+      console.error('Error executing bulk insert:', error)
+      if (error instanceof Error)
+        throw new DatabaseError(`Failed to execute bulk insert: ${error.message}`)
+      throw error
+    }
     return this
   }
 
@@ -118,7 +136,27 @@ export class CreateDB {
     }
   }
 
-  close(): void {
+  beginTransaction() {
+    this.run('BEGIN TRANSACTION')
+    return this
+  }
+
+  commitTransaction() {
+    this.run('COMMIT')
+    return this
+  }
+
+  rollbackTransaction() {
+    this.run('ROLLBACK')
+    return this
+  }
+
+  setPragma(pragma: string, value: string | number) {
+    this.run(`PRAGMA ${pragma} = ${value}`)
+    return this
+  }
+
+  close() {
     this.db.close()
   }
 }
