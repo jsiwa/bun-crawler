@@ -43,17 +43,19 @@ export class CreateDB {
 
   select(
     tableName: string,
-    options: { condition?: string, params?: any[], limit?: number, offset?: number } = {}
+    options: { condition?: string, params?: any[], orderBy?: string, limit?: number, offset?: number } = {}
   ): any[] {
     let querySQL = `SELECT * FROM ${tableName}`
-    const { condition, params = [], limit, offset } = options
+    const { condition, params = [], offset, orderBy } = options
+    const limit = options.limit || 20
 
     if (condition) {
       querySQL += ` WHERE ${condition}`
     }
-    if (limit !== undefined) {
-      querySQL += ` LIMIT ${limit}`
+    if (orderBy) {
+      querySQL += ` ORDER BY ${orderBy}`
     }
+    querySQL += ` LIMIT ${limit}`
     if (offset !== undefined) {
       querySQL += ` OFFSET ${offset}`
     }
