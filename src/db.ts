@@ -84,6 +84,26 @@ export class CreateDB {
     return this.all(querySQL, params)
   }
 
+  insert(tableName: string, data: Record<string, any>): this {
+    const keys = Object.keys(data)
+    const placeholders = keys.map(() => '?').join(', ')
+    const columns = keys.join(', ')
+    const values = Object.values(data)
+
+    const insertSQL = `INSERT INTO ${tableName} (${columns}) VALUES (${placeholders})`
+    this.run(insertSQL, values)
+    return this
+  }
+
+  count(tableName: string, condition?: string, params: any[] = []): number {
+    let countSQL = `SELECT COUNT(*) as count FROM ${tableName}`;
+    if (condition) {
+      countSQL += ` WHERE ${condition}`;
+    }
+    const result = this.all(countSQL, params);
+    return result[0]?.count || 0;
+  }
+
   update(
     tableName: string,
     data: Record<string, any>,
