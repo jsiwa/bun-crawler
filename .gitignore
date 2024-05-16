@@ -133,6 +133,7 @@ dist
 
 # test
 test*.ts
+test*.tsx
 *.db
 *.db-shm
 *.db-wal
