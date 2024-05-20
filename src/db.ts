@@ -17,7 +17,7 @@ export class CreateDB {
     }
   }
 
-  createTable(tableName: string, fields: string, indices?: { name: string, columns: string }[]): this {
+  createTable(tableName: string, fields: string, indices?: { name: string, columns: string }[]) {
     this.validateTableName(tableName)
     const createTableSQL = `CREATE TABLE IF NOT EXISTS ${tableName} (${fields})`
     this.run(createTableSQL)
@@ -31,7 +31,7 @@ export class CreateDB {
     return this
   }
 
-  createIndex(tableName: string, indexName: string, columnNames: string): this {
+  createIndex(tableName: string, indexName: string, columnNames: string) {
     this.validateTableName(indexName)
     const createIndexSQL = `CREATE INDEX IF NOT EXISTS ${indexName} ON ${tableName} (${columnNames})`
     this.run(createIndexSQL)
@@ -66,7 +66,7 @@ export class CreateDB {
   select(
     tableName: string,
     options: { condition?: string, params?: any[], orderBy?: string, limit?: number, offset?: number } = {}
-  ): any[] {
+  ) {
     let querySQL = `SELECT * FROM ${tableName}`
     const { condition, params = [], offset, orderBy } = options
     const limit = options.limit || 20
@@ -85,7 +85,7 @@ export class CreateDB {
     return this.all(querySQL, params)
   }
 
-  insert(tableName: string, data: Record<string, any>): this {
+  insert(tableName: string, data: Record<string, any>) {
     const keys = Object.keys(data)
     const placeholders = keys.map(() => '?').join(', ')
     const columns = keys.join(', ')
@@ -110,7 +110,7 @@ export class CreateDB {
     data: Record<string, any>,
     condition: string,
     params: any[] = []
-  ): this {
+  ) {
     if (!condition) {
       throw new DatabaseError('Update operation requires a condition to avoid updating all rows.')
     }
@@ -126,7 +126,7 @@ export class CreateDB {
     return this
   }
 
-  delete(tableName: string, condition: string, params: any[] = []): this {
+  delete(tableName: string, condition: string, params: any[] = []) {
     if (condition) {
       throw new DatabaseError('Delete operation requires a condition to avoid deleting all rows.')
     }
