@@ -242,6 +242,15 @@ export class CreateDB {
     return this.all(query, [limit, offset])
   }
 
+  public renameTable(newTableName: string) {
+    this.hasTableName();
+    this.checkTableName(newTableName)
+    const renameTableSQL = `ALTER TABLE ${this.tableName} RENAME TO ${newTableName}`
+    this.run(renameTableSQL)
+    this.tableName = newTableName
+    return this
+  }
+
   public getAllTables() {
     const stmt = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table';")
     const tables = stmt.all().map(row => (row as { name: string }).name)
