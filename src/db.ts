@@ -18,6 +18,9 @@ export class CreateDB {
   }
 
   createTable(tableName: string, fields: string, indices?: { name: string, columns: string }[]): this {
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
+      throw new DatabaseError(`Invalid table name: ${tableName}`)
+    }
     const createTableSQL = `CREATE TABLE IF NOT EXISTS ${tableName} (${fields})`
     this.run(createTableSQL)
 
