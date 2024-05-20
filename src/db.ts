@@ -227,14 +227,15 @@ export class CreateDB {
   }
 
   // Helper Methods
-  findById(id: number) {
+
+  public findById(id: number) {
     this.hasTableName()
     const query = `SELECT * FROM ${this.tableName} WHERE id = ?`
     const result = this.runReturning(query, [id])
     return result
   }
 
-  findMany(page: number, limit: number) {
+  public findMany(page: number, limit: number) {
     this.hasTableName()
     const offset = (page - 1) * limit
     const query = `SELECT * FROM ${this.tableName} LIMIT ? OFFSET ?`
@@ -255,5 +256,4 @@ export class CreateDB {
     console.log(`Table creation SQL for ${tableName}: ${createSQL}`)
     return createSQL
   }
-
 }
