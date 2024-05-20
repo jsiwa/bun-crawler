@@ -149,6 +149,11 @@ class Crawler {
   }
 
   public start() {
+    if (this.active) {
+      console.log('Crawler is already running.')
+      return this
+    }
+    console.log('Starting crawler.')
     this.active = true
     this.checkQueue()
     console.log('Crawler started.')
