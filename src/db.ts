@@ -13,21 +13,18 @@ export class CreateDB {
   constructor(dbName: string, enableWAL: boolean = false) {
     this.db = new Database(`${dbName}.db`, { create: true })
     if (enableWAL) {
-      this.db.exec('PRAGMA journal_mode = WAL;')
+      this.setPragma('journal_mode', 'WAL')
     }
   }
 
   createTable(tableName: string, fields: string, indices?: { name: string, columns: string }[]): this {
-    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
-      throw new DatabaseError(`Invalid table name: ${tableName}`)
-    }
+    this.validateTableName(tableName)
     const createTableSQL = `CREATE TABLE IF NOT EXISTS ${tableName} (${fields})`
     this.run(createTableSQL)
 
     if (indices) {
       for (const index of indices) {
-        const createIndexSQL = `CREATE INDEX IF NOT EXISTS ${index.name} ON ${tableName} (${index.columns})`
-        this.run(createIndexSQL)
+        this.createIndex(tableName, index.name, index.columns)
       }
     }
 
@@ -35,6 +32,7 @@ export class CreateDB {
   }
 
   createIndex(tableName: string, indexName: string, columnNames: string): this {
+    this.validateTableName(indexName)
     const createIndexSQL = `CREATE INDEX IF NOT EXISTS ${indexName} ON ${tableName} (${columnNames})`
     this.run(createIndexSQL)
     return this
@@ -49,14 +47,14 @@ export class CreateDB {
     const insertSQL = `INSERT INTO ${tableName} (${columns}) VALUES (${placeholders})`
 
     try {
-      this.db.exec('BEGIN TRANSACTION')
+      this.beginTransaction()
       const statement = this.db.prepare(insertSQL)
       for (const row of data) {
         statement.run(...Object.values(row))
       }
-      this.db.exec('COMMIT')
+      this.commitTransaction()
     } catch (error) {
-      this.db.exec('ROLLBACK')
+      this.rollbackTransaction()
       console.error('Error executing bulk insert:', error)
       if (error instanceof Error)
         throw new DatabaseError(`Failed to execute bulk insert: ${error.message}`)
@@ -99,37 +97,43 @@ export class CreateDB {
   }
 
   count(tableName: string, condition?: string, params: any[] = []): number {
-    let countSQL = `SELECT COUNT(*) as count FROM ${tableName}`;
+    let countSQL = `SELECT COUNT(*) as count FROM ${tableName}`
     if (condition) {
-      countSQL += ` WHERE ${condition}`;
+      countSQL += ` WHERE ${condition}`
     }
-    const result = this.all(countSQL, params);
-    return result[0]?.count || 0;
+    const result = this.all(countSQL, params)
+    return result[0]?.count || 0
   }
 
   update(
     tableName: string,
     data: Record<string, any>,
-    condition?: string,
+    condition: string,
     params: any[] = []
   ): this {
+    if (!condition) {
+      throw new DatabaseError('Update operation requires a condition to avoid updating all rows.')
+    }
+
     const keys = Object.keys(data)
     const setClause = keys.map(key => `${key} = ?`).join(', ')
     const values = Object.values(data)
 
     let updateSQL = `UPDATE ${tableName} SET ${setClause}`
-    if (condition) {
-      updateSQL += ` WHERE ${condition}`
-    }
+    updateSQL += ` WHERE ${condition}`
+
     this.run(updateSQL, [...values, ...params])
     return this
   }
 
-  delete(tableName: string, condition?: string, params: any[] = []): this {
-    let deleteSQL = `DELETE FROM ${tableName}`
+  delete(tableName: string, condition: string, params: any[] = []): this {
     if (condition) {
-      deleteSQL += ` WHERE ${condition}`
+      throw new DatabaseError('Delete operation requires a condition to avoid deleting all rows.')
     }
+
+    let deleteSQL = `DELETE FROM ${tableName}`
+    deleteSQL += ` WHERE ${condition}`
+
     this.run(deleteSQL, params)
     return this
   }
@@ -142,6 +146,7 @@ export class CreateDB {
     try {
       const statement = this.db.prepare(sql)
       statement.run(...params)
+      console.log(`Executed SQL: ${sql} with params: ${params}`)
     } catch (error) {
       console.error('Error executing query:', error)
       if (error instanceof Error)
@@ -153,7 +158,9 @@ export class CreateDB {
   private all(sql: string, params: any[] = []): any[] {
     try {
       const statement = this.db.prepare(sql)
-      return statement.all(...params)
+      const results = statement.all(...params)
+      console.log(`Executed SQL: ${sql} with params: ${params}, results: ${results}`)
+      return results
     } catch (error) {
       console.error('Error executing query:', error)
       if (error instanceof Error)
@@ -184,5 +191,11 @@ export class CreateDB {
 
   close() {
     this.db.close()
+  }
+
+  private validateTableName(tableName: string) {
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
+      throw new DatabaseError(`Invalid table name: ${tableName}`)
+    }
   }
 }
