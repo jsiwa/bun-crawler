@@ -240,4 +240,20 @@ export class CreateDB {
     const query = `SELECT * FROM ${this.tableName} LIMIT ? OFFSET ?`
     return this.all(query, [limit, offset])
   }
+
+  public getAllTables() {
+    const stmt = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table';")
+    const tables = stmt.all().map(row => (row as { name: string }).name)
+    console.log(`All tables: ${tables.join(', ')}`)
+    return tables
+  }
+
+  public getTableCreationSQL(tableName: string) {
+    const stmt = this.db.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name=?;`)
+    const result = stmt.get(tableName) as { sql: string } | undefined
+    const createSQL = result ? result.sql : `No table named ${tableName}`
+    console.log(`Table creation SQL for ${tableName}: ${createSQL}`)
+    return createSQL
+  }
+
 }
