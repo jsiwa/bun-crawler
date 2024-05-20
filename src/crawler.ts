@@ -20,9 +20,11 @@ interface BeforeRequestHandler {
 class Crawler {
   private taskQueue: string[] = []
   private active: boolean = false
+  private paused: boolean = false
   private concurrency: number
   private activeRequests: number = 0
   private retries: number = 0
+  private delay: number = 0 // Default delay is 0
   private errorHandler: ErrorHandler
   private itemProcessor: ItemProcessor
   private end: EndHandler
@@ -47,7 +49,7 @@ class Crawler {
   }
 
   private async checkQueue() {
-    while (this.active && this.activeRequests < this.concurrency && this.taskQueue.length > 0) {
+    while (this.active && !this.paused && this.activeRequests < this.concurrency && this.taskQueue.length > 0) {
       const url = this.taskQueue.shift()
       if (url) {
         const proceed = await this.beforeRequestHandler(url)
@@ -55,10 +57,12 @@ class Crawler {
           this.activeRequests++
           this.fetchPage(url, this.retries).finally(() => {
             this.activeRequests--
-            if (this.active) {
+            if (this.active && !this.paused) {
               this.checkQueue()
             }
           })
+        } else {
+          console.log(`Before request handler blocked URL: ${url}`)
         }
       } else {
         this.end()
@@ -68,18 +72,22 @@ class Crawler {
   }
 
   private async fetchPage(url: string, retries: number = 0) {
+    if (this.delay > 0) {
+      await sleep(this.delay)
+    }
+
     try {
       const html = await this.fetchUrl(url)
       console.log(`Page fetched: ${url}`)
       this.itemProcessor(html, url)
     } catch (error) {
       if (retries > 0) {
-        console.log(`Retry ${url}, attempts left: ${retries}`)
+        console.log(`Retrying ${url}, attempts left: ${retries}`);
         setTimeout(() => this.fetchPage(url, retries - 1), 1000)
       } else if (error instanceof Error) {
         this.errorHandler(error, url)
       } else {
-        console.error("Unexpected error type:", error)
+        console.error(`Unexpected error type for ${url}:`, error)
       }
     }
   }
@@ -108,6 +116,7 @@ class Crawler {
       const response = await fetch(url, options)
       if (response.ok) {
         const data = await response.text()
+        console.log(`Response received successfully from ${url}`)
         return data
       } else {
         throw new Error(`Request Failed. Status Code: ${response.status}`)
@@ -129,7 +138,13 @@ class Crawler {
     return this
   }
 
+  public setDelay(delay: number) {
+    this.delay = delay
+    return this
+  }
+
   public setCookies(cookies: string) {
+    console.log(`Setting cookies: ${cookies}`)
     this.cookies = cookies
     return this
   }
@@ -150,11 +165,11 @@ class Crawler {
 
   public start() {
     if (this.active) {
-      console.log('Crawler is already running.')
+      console.log('Crawler is already running.');
       return this
     }
-    console.log('Starting crawler.')
     this.active = true
+    this.paused = false
     this.checkQueue()
     console.log('Crawler started.')
     return this
@@ -163,6 +178,23 @@ class Crawler {
   public stop() {
     this.active = false
     console.log('Crawler stopped.')
+    return this
+  }
+
+  public pause() {
+    this.paused = true
+    console.log('Crawler paused.')
+    return this
+  }
+
+  public resume() {
+    if (this.active && this.paused) {
+      this.paused = false
+      this.checkQueue()
+      console.log('Crawler resumed.')
+    } else {
+      console.log('Cannot resume crawler. It is either not active or not paused.')
+    }
     return this
   }
 
