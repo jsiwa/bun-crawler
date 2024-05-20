@@ -30,8 +30,9 @@ import { sleep } from 'bun'
 import { isUrl } from './utils'
 
 const tableName = 'site'
-const db = new CreateDB(tableName, true)
-db.createTable(tableName, 'id INTEGER PRIMARY KEY AUTOINCREMENT,url TEXT NOT NULL UNIQUE,data TEXT,status TEXT,timestamp DATETIME DEFAULT CURRENT_TIMESTAMP')
+const db = new CreateDB('example', true)
+db.setTable(tableName)
+db.createTable('id INTEGER PRIMARY KEY AUTOINCREMENT,url TEXT NOT NULL UNIQUE,data TEXT,status TEXT,timestamp DATETIME DEFAULT CURRENT_TIMESTAMP')
 
 const crawler = new Crawler(3)
   .addTask('https://example.com')
@@ -39,7 +40,7 @@ const crawler = new Crawler(3)
   .onError((error, url) => {
     console.error(error)
     try {
-      db.insert(tableName, {
+      db.insert({
         url,
         status: 'false'
       })
@@ -49,7 +50,7 @@ const crawler = new Crawler(3)
     const remainingTasks = crawler.getTaskCount()
     console.log(`Crawling: ${url}, reamining tasks: ${remainingTasks}`)
     try {
-      db.insert(tableName, {
+      db.insert({
         url,
         status: 'success',
         data: html
@@ -59,7 +60,10 @@ const crawler = new Crawler(3)
     $('a').each((_, el) => {
       const link = $(el).attr('href')
       if (link && isUrl(link)) {
-        const item = db.findByCondition(tableName, 'url = ?', [link])
+        const item = db.select({
+          condition: 'url = ?',
+          params: [link]
+        })
         if (item.length === 0) {
           crawler.addTask(link)
         }
@@ -102,7 +106,7 @@ const server = Bun.serve({
     const pageNum = Number(o.get('pageNum')) || 1
     const pageSize = Number(o.get('pageSize')) || 20
 
-    const list = db.select(tableName, {
+    const list = db.select({
       condition: 'status = ? ORDER BY ID DESC',
       params: [1],
       offset: pageSize * (pageNum - 1),
@@ -128,7 +132,7 @@ const db = new CreateDB('example')
   .update('users', { name: 'Jane Doe' }, 'id = ?', [1])
 
 // Using the new select method with options
-const users = db.select('users', { condition: 'id > ?', params: [1] })
+const users = db.select({ condition: 'id > ?', params: [1] })
 console.log(users)
 
 // Using the exec method to run a custom query
