@@ -225,4 +225,19 @@ export class CreateDB {
       throw new DatabaseError(`Invalid table name: ${tableName}`)
     }
   }
+
+  // Helper Methods
+  findById(id: number) {
+    this.hasTableName()
+    const query = `SELECT * FROM ${this.tableName} WHERE id = ?`
+    const result = this.runReturning(query, [id])
+    return result
+  }
+
+  findMany(page: number, limit: number) {
+    this.hasTableName()
+    const offset = (page - 1) * limit
+    const query = `SELECT * FROM ${this.tableName} LIMIT ? OFFSET ?`
+    return this.all(query, [limit, offset])
+  }
 }
