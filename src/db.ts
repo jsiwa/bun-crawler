@@ -296,6 +296,11 @@ export class CreateDB {
     }
   }
 
+  private columnExists(columnName: string): boolean {
+    const tableInfo = this.db.prepare(`PRAGMA table_info(${this.tableName});`).all()
+    return tableInfo.some((info: any) => info.name === columnName)
+  }
+
   // Helper Methods
 
   public findById(id: number) {
@@ -324,6 +329,9 @@ export class CreateDB {
   addColumn(columnName: string, columnType: ColumnType) {
     this.hasTableName()
     this.checkColumnNames(columnName)
+    if (this.columnExists(columnName)) {
+      throw new DatabaseError(`Column ${columnName} already exists in table ${this.tableName}`)
+    }
     this.checkColumnType(columnType)
     const addColumnSQL = `ALTER TABLE ${this.tableName} ADD COLUMN ${columnName} ${columnType}`
     this.run(addColumnSQL)
