@@ -7,6 +7,15 @@ export class DatabaseError extends Error {
   }
 }
 
+export enum ColumnType {
+  NULL = 'NULL',
+  INTEGER = 'INTEGER',
+  REAL = 'REAL',
+  TEXT = 'TEXT',
+  BLOB = 'BLOB',
+  NUMERIC = 'NUMERIC',
+}
+
 export class CreateDB {
   private db: Database
   private tableName: string = ''
@@ -281,6 +290,12 @@ export class CreateDB {
     return parsed
   }
 
+  private checkColumnType(columnType: ColumnType) {
+    if (!Object.values(ColumnType).includes(columnType)) {
+      throw new DatabaseError(`Invalid column type: ${columnType}`)
+    }
+  }
+
   // Helper Methods
 
   public findById(id: number) {
@@ -306,12 +321,10 @@ export class CreateDB {
     return this.all(query, [limit, offset])
   }
 
-  addColumn(columnName: string, columnType: string) {
+  addColumn(columnName: string, columnType: ColumnType) {
     this.hasTableName()
     this.checkColumnNames(columnName)
-    if (!columnType) {
-      throw new DatabaseError('Column type must be specified.')
-    }
+    this.checkColumnType(columnType)
     const addColumnSQL = `ALTER TABLE ${this.tableName} ADD COLUMN ${columnName} ${columnType}`
     this.run(addColumnSQL)
     return this
