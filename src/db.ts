@@ -268,7 +268,7 @@ export class CreateDB {
 
     // Check for forbidden keywords using specific regex patterns to avoid false positives
     for (const keyword of forbiddenKeywords) {
-      const regex = new RegExp(keyword, 'gi')
+      const regex = new RegExp(`\\b${keyword}\\b`, 'gi')
       if (regex.test(condition)) {
         console.log(`Found forbidden keyword: ${keyword} in condition: ${condition}`)
         throw new DatabaseError(`Invalid condition containing forbidden keyword: ${keyword}`)

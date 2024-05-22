@@ -60,6 +60,9 @@ try {
     db.rollbackTransaction()
   }
 
+  // adjust the string time to Unix time
+  db.exec(`UPDATE table_name SET timestamp = strftime('%s', timestamp)`)
+
   // Set PRAGMA
   db.setPragma('cache_size', 10000)
 
