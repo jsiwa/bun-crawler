@@ -290,15 +290,31 @@ export class CreateDB {
     return result
   }
 
-  public findMany(page: number, limit: number, orderBy?: string) {
+  public findMany(page: number, limit: number, condition?: string, orderBy?: string) {
     this.hasTableName()
     const offset = (this.checkPositiveInteger(page) - 1) * this.checkPositiveInteger(limit)
     const orderClause = this.checkOrderBy(orderBy) || ''
-    let query = `SELECT * FROM ${this.tableName} LIMIT ? OFFSET ?`
+    let query = `SELECT * FROM ${this.tableName}`
+    if (condition) {
+      this.sanitizeCondition(condition)
+      query += ` WHERE ${condition}`
+    }
     if (orderClause) {
       query += ` ORDER BY ${orderClause}`
     }
+    query += ' LIMIT ? OFFSET ?'
     return this.all(query, [limit, offset])
+  }
+
+  addColumn(columnName: string, columnType: string) {
+    this.hasTableName()
+    this.checkColumnNames(columnName)
+    if (!columnType) {
+      throw new DatabaseError('Column type must be specified.')
+    }
+    const addColumnSQL = `ALTER TABLE ${this.tableName} ADD COLUMN ${columnName} ${columnType}`
+    this.run(addColumnSQL)
+    return this
   }
 
   public renameTable(newTableName: string) {
