@@ -7,6 +7,15 @@ export class DatabaseError extends Error {
   }
 }
 
+export enum ColumnType {
+  NULL = 'NULL',
+  INTEGER = 'INTEGER',
+  REAL = 'REAL',
+  TEXT = 'TEXT',
+  BLOB = 'BLOB',
+  NUMERIC = 'NUMERIC',
+}
+
 export class CreateDB {
   private db: Database
   private tableName: string = ''
@@ -259,7 +268,7 @@ export class CreateDB {
 
     // Check for forbidden keywords using specific regex patterns to avoid false positives
     for (const keyword of forbiddenKeywords) {
-      const regex = new RegExp(keyword, 'gi')
+      const regex = new RegExp(`\\b${keyword}\\b`, 'gi')
       if (regex.test(condition)) {
         console.log(`Found forbidden keyword: ${keyword} in condition: ${condition}`)
         throw new DatabaseError(`Invalid condition containing forbidden keyword: ${keyword}`)
@@ -281,6 +290,17 @@ export class CreateDB {
     return parsed
   }
 
+  private checkColumnType(columnType: ColumnType) {
+    if (!Object.values(ColumnType).includes(columnType)) {
+      throw new DatabaseError(`Invalid column type: ${columnType}`)
+    }
+  }
+
+  private columnExists(columnName: string): boolean {
+    const tableInfo = this.db.prepare(`PRAGMA table_info(${this.tableName});`).all()
+    return tableInfo.some((info: any) => info.name === columnName)
+  }
+
   // Helper Methods
 
   public findById(id: number) {
@@ -290,15 +310,32 @@ export class CreateDB {
     return result
   }
 
-  public findMany(page: number, limit: number, orderBy?: string) {
+  public findMany(page: number, limit: number, condition?: string, orderBy?: string) {
     this.hasTableName()
     const offset = (this.checkPositiveInteger(page) - 1) * this.checkPositiveInteger(limit)
     const orderClause = this.checkOrderBy(orderBy) || ''
-    let query = `SELECT * FROM ${this.tableName} LIMIT ? OFFSET ?`
+    let query = `SELECT * FROM ${this.tableName}`
+    if (condition) {
+      this.sanitizeCondition(condition)
+      query += ` WHERE ${condition}`
+    }
     if (orderClause) {
       query += ` ORDER BY ${orderClause}`
     }
+    query += ' LIMIT ? OFFSET ?'
     return this.all(query, [limit, offset])
+  }
+
+  addColumn(columnName: string, columnType: ColumnType) {
+    this.hasTableName()
+    this.checkColumnNames(columnName)
+    if (this.columnExists(columnName)) {
+      throw new DatabaseError(`Column ${columnName} already exists in table ${this.tableName}`)
+    }
+    this.checkColumnType(columnType)
+    const addColumnSQL = `ALTER TABLE ${this.tableName} ADD COLUMN ${columnName} ${columnType}`
+    this.run(addColumnSQL)
+    return this
   }
 
   public renameTable(newTableName: string) {
